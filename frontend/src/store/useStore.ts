@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 import { TabType, Ticket, Transaction, FraudCase, Approval, AuditLog, AnalyticsMetrics } from '../types';
 
+export interface UserState {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  department?: string;
+  avatar?: string;
+}
+
 interface NotificationToast {
   id: string;
   title: string;
@@ -12,6 +21,12 @@ interface NotificationToast {
 interface AppState {
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
+
+  // Authentication State
+  currentUser: UserState | null;
+  isAuthenticated: boolean;
+  loginUser: (user: UserState, token: string) => void;
+  logoutUser: () => void;
 
   // UI Drawer states
   isCopilotOpen: boolean;
@@ -49,6 +64,19 @@ interface AppState {
 export const useStore = create<AppState>((set) => ({
   activeTab: 'OVERVIEW',
   setActiveTab: (tab) => set({ activeTab: tab }),
+
+  currentUser: JSON.parse(localStorage.getItem('finops_user') || 'null'),
+  isAuthenticated: Boolean(localStorage.getItem('finops_auth_token')),
+  loginUser: (user, token) => {
+    localStorage.setItem('finops_auth_token', token);
+    localStorage.setItem('finops_user', JSON.stringify(user));
+    set({ currentUser: user, isAuthenticated: true });
+  },
+  logoutUser: () => {
+    localStorage.removeItem('finops_auth_token');
+    localStorage.removeItem('finops_user');
+    set({ currentUser: null, isAuthenticated: false });
+  },
 
   isCopilotOpen: false,
   setCopilotOpen: (open) => set({ isCopilotOpen: open }),

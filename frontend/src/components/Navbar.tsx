@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
-import { Bot, Search, Bell, Sparkles, Command, ShieldCheck, PlayCircle, LogIn } from 'lucide-react';
+import { Search, Bell, Sparkles, Command, ShieldCheck, PlayCircle, LogIn, LogOut, UserCheck } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { LoginModal } from './LoginModal';
 
 export const Navbar: React.FC = () => {
-  const { setCopilotOpen, setCommandPaletteOpen, setDemoModalOpen, notifications, approvals } = useStore();
+  const { setCopilotOpen, setCommandPaletteOpen, setDemoModalOpen, approvals, currentUser, logoutUser } = useStore();
   const [isLoginOpen, setLoginOpen] = useState(false);
   const pendingApprovalsCount = approvals.filter((a) => a.status === 'PENDING').length;
+
+  const initials = currentUser?.name
+    ? currentUser.name.split(' ').map((n) => n[0]).join('').slice(0, 2)
+    : 'AV';
 
   return (
     <header className="h-16 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30 px-6 flex items-center justify-between">
@@ -77,22 +81,34 @@ export const Navbar: React.FC = () => {
 
         <div className="h-6 w-px bg-slate-800" />
 
-        {/* User Profile / Switch Account Button */}
-        <button
-          onClick={() => setLoginOpen(true)}
-          className="flex items-center space-x-3 p-1.5 rounded-xl hover:bg-slate-800/60 border border-slate-800/60 transition group text-left"
-        >
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-blue-500/20 border border-blue-500/30 shrink-0">
-            AV
-          </div>
-          <div className="hidden lg:block">
-            <div className="text-xs font-semibold text-slate-200 group-hover:text-white flex items-center space-x-1">
-              <span>Alex Vance</span>
-              <LogIn className="w-3 h-3 text-slate-400 group-hover:text-blue-400" />
+        {/* User Profile & Account Actions */}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setLoginOpen(true)}
+            className="flex items-center space-x-3 p-1.5 rounded-xl hover:bg-slate-800/60 border border-slate-800/60 transition group text-left"
+            title="Switch User Account"
+          >
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-blue-500/20 border border-blue-500/30 shrink-0">
+              {initials}
             </div>
-            <div className="text-[10px] text-cyan-400 font-medium">VP Financial Operations</div>
-          </div>
-        </button>
+            <div className="hidden lg:block">
+              <div className="text-xs font-semibold text-slate-200 group-hover:text-white flex items-center space-x-1">
+                <span>{currentUser?.name || 'Alex Vance'}</span>
+                <UserCheck className="w-3 h-3 text-cyan-400" />
+              </div>
+              <div className="text-[10px] text-cyan-400 font-medium">{currentUser?.role || 'VP Financial Operations'}</div>
+            </div>
+          </button>
+
+          {/* Sign Out Button */}
+          <button
+            onClick={() => logoutUser()}
+            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 hover:border-rose-500/40 hover:bg-rose-950/20 transition flex items-center space-x-1"
+            title="Sign Out to Login Screen"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       <LoginModal isOpen={isLoginOpen} onClose={() => setLoginOpen(false)} />

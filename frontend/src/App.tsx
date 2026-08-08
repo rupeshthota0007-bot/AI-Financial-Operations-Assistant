@@ -7,6 +7,7 @@ import { CopilotDrawer } from './components/CopilotDrawer';
 import { CommandPalette } from './components/CommandPalette';
 import { NotificationToastContainer } from './components/NotificationToast';
 import { DemoFlowModal } from './components/DemoFlowModal';
+import { LoginPage } from './components/LoginPage';
 
 import { AnalyticsDashboard } from './components/dashboards/AnalyticsDashboard';
 import { SupportDashboard } from './components/dashboards/SupportDashboard';
@@ -19,6 +20,7 @@ import { CustomerDashboard } from './components/dashboards/CustomerDashboard';
 
 export const App: React.FC = () => {
   const {
+    isAuthenticated,
     activeTab,
     setTickets,
     setTransactions,
@@ -27,9 +29,13 @@ export const App: React.FC = () => {
     setAuditLogs,
     setMetrics,
     addNotification,
+    setApprovals: updateApprovals,
+    setAuditLogs: updateAuditLogs,
   } = useStore();
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     // Initial fetch of enterprise data
     const loadInitialData = async () => {
       try {
@@ -71,8 +77,8 @@ export const App: React.FC = () => {
           });
         }
         if (msg.event === 'APPROVAL_STATUS_CHANGED') {
-          api.getApprovals().then((res) => setApprovals(res.approvals));
-          api.getAuditLogs().then((res) => setAuditLogs(res.logs));
+          api.getApprovals().then((res) => updateApprovals(res.approvals));
+          api.getAuditLogs().then((res) => updateAuditLogs(res.logs));
         }
       } catch (err) {
         // Ignore non-json
@@ -80,7 +86,12 @@ export const App: React.FC = () => {
     };
 
     return () => ws.close();
-  }, []);
+  }, [isAuthenticated]);
+
+  // If user is not authenticated, render the Enterprise Login Page UI first
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
 
   const renderDashboard = () => {
     switch (activeTab) {
