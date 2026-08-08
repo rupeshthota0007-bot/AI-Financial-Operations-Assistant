@@ -1,0 +1,257 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         String    // ADMIN, SUPPORT, FINANCE, FRAUD_ANALYST, COMPLIANCE_OFFICER, MANAGER, AUDITOR, VIEWER
+  avatar       String?
+  department   String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  approvalsRequested Approval[] @relation("RequestedApprovals")
+  approvalsHandled   Approval[] @relation("HandledApprovals")
+  approvalHistory    ApprovalHistory[]
+}
+
+model Customer {
+  id            String   @id @default(uuid())
+  customerCode  String   @unique
+  name          String
+  email         String   @unique
+  phone         String?
+  tier          String   // VIP, STANDARD, HIGH_RISK, CORPORATE
+  riskScore     Float    @default(0.0) // 0 - 100
+  accountStatus String   @default("ACTIVE") // ACTIVE, FROZEN, UNDER_REVIEW, CLOSED
+  totalSpent    Float    @default(0.0)
+  kycStatus     String   @default("VERIFIED")
+  country       String   @default("US")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  transactions Transactions[]
+  refunds      Refund[]
+  tickets      Ticket[]
+  fraudCases   FraudCase[]
+}
+
+model Transactions {
+  id            String   @id @default(uuid())
+  txCode        String   @unique
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id])
+  amount        Float
+  currency      String   @default("USD")
+  status        String   // COMPLETED, SETTLED, PENDING, FAILED, CHARGEBACK, REFUNDED
+  paymentMethod String   // CREDIT_CARD, BANK_TRANSFER, WIRE, CRYPTO, APPLE_PAY
+  merchant      String   @default("FinOps Merchant")
+  location      String?  // City, Country
+  ipAddress     String?
+  deviceId      String?
+  riskScore     Float    @default(0.0)
+  settlementDays Int     @default(1)
+  createdAt     DateTime @default(now())
+
+  refunds       Refund[]
+  fraudCases    FraudCase[]
+}
+
+model Refund {
+  id            String       @id @default(uuid())
+  refundCode    String       @unique
+  transactionId String
+  transaction   Transactions @relation(fields: [transactionId], references: [id])
+  customerId    String
+  customer      Customer     @relation(fields: [customerId], references: [id])
+  amount        Float
+  reason        String
+  status        String       // PENDING_APPROVAL, APPROVED, REJECTED, PROCESSED, FAILED
+  requestedBy   String       // AGENT, USER, SYSTEM
+  approvedBy    String?
+  approvalId    String?      @unique
+  approval      Approval?    @relation(fields: [approvalId], references: [id])
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model FraudCase {
+  id            String        @id @default(uuid())
+  caseCode      String        @unique
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  transactionId String?
+  transaction   Transactions? @relation(fields: [transactionId], references: [id])
+  riskLevel     String        // LOW, MEDIUM, HIGH, CRITICAL
+  riskScore     Float         // 0 - 100
+  triggerReason String
+  geoData       String?       // JSON string
+  deviceData    String?       // JSON string
+  velocityScore Float         @default(0.0)
+  status        String        // OPEN, UNDER_INVESTIGATION, ACTION_TAKEN, RESOLVED_BENIGN, BLOCKED
+  assignedTo    String?
+  resolution    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Ticket {
+  id            String          @id @default(uuid())
+  ticketCode    String          @unique
+  customerId    String
+  customer      Customer        @relation(fields: [customerId], references: [id])
+  subject       String
+  description   String
+  priority      String          // LOW, MEDIUM, HIGH, URGENT
+  category      String          // DISPUTE, REFUND_REQUEST, FRAUD_ALERT, GENERAL, TECHNICAL
+  status        String          // OPEN, PENDING_AI, ESCALATED, RESOLVED, CLOSED
+  urgencyScore  Float           @default(0.0)
+  assignedAgent String          @default("Supervisor AI")
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  messages      TicketMessage[]
+}
+
+model TicketMessage {
+  id         String   @id @default(uuid())
+  ticketId   String
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderType String   // CUSTOMER, AI_AGENT, HUMAN_AGENT
+  senderName String
+  message    String
+  metadata   String?  // JSON string
+  createdAt  DateTime @default(now())
+}
+
+model Approval {
+  id               String            @id @default(uuid())
+  approvalCode     String            @unique
+  title            String
+  type             String            // HIGH_VALUE_REFUND, ACCOUNT_FREEZE, TRANSACTION_HOLD, ACCOUNT_CLOSURE
+  targetId         String            // Refund ID, Customer ID, Tx ID
+  requesterId      String
+  requester        User              @relation("RequestedApprovals", fields: [requesterId], references: [id])
+  approverId       String?
+  approver         User?             @relation("HandledApprovals", fields: [approverId], references: [id])
+  amount           Float             @default(0.0)
+  riskScore        Float             @default(0.0)
+  policyTriggered  String
+  status           String            // PENDING, APPROVED, REJECTED, TIMED_OUT
+  notes            String?
+  requiredRole     String            // MANAGER, FINANCE, COMPLIANCE_OFFICER, ADMIN
+  aiRecommendation String?           // JSON string
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  refund           Refund?
+  history          ApprovalHistory[]
+}
+
+model ApprovalHistory {
+  id         String   @id @default(uuid())
+  approvalId String
+  approval   Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  actorId    String
+  actor      User     @relation(fields: [actorId], references: [id])
+  action     String   // CREATED, APPROVED, REJECTED, ESCALATED, COMMENTED
+  comment    String?
+  createdAt  DateTime @default(now())
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  logCode       String   @unique
+  timestamp     DateTime @default(now())
+  agentName     String
+  action        String
+  targetEntity  String
+  entityId      String
+  reason        String
+  evidence      String   // JSON string
+  decision      String
+  confidence    Float
+  hashSignature String
+  humanApproved Boolean  @default(false)
+  humanApprover String?
+  metadata      String?  // JSON string
+  createdAt     DateTime @default(now())
+}
+
+model AIResponse {
+  id              String   @id @default(uuid())
+  prompt          String
+  agentName       String
+  responseText    String
+  evidenceJson    String?
+  confidenceScore Float
+  tokensUsed      Int      @default(0)
+  executionTimeMs Int      @default(0)
+  createdAt       DateTime @default(now())
+}
+
+model Embedding {
+  id           String   @id @default(uuid())
+  documentId   String
+  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunkIndex   Int
+  content      String
+  vectorJson   String   // JSON string representation of embedding vector floats
+  metadataJson String?  // JSON string
+  createdAt    DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String?
+  title     String
+  message   String
+  type      String   // APPROVAL_REQUEST, FRAUD_ALERT, TICKET_UPDATE, SYSTEM_INFO
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+}
+
+model Document {
+  id         String      @id @default(uuid())
+  docCode    String      @unique
+  title      String
+  category   String      // REFUND_POLICY, FRAUD_SOP, RBI_COMPLIANCE, INTERNAL_RULES, SUPPORT_ARTICLES
+  content    String
+  version    String      @default("1.0")
+  tags       String?     // Comma separated
+  fileUrl    String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  embeddings Embedding[]
+}
+
+model KnowledgeBase {
+  id         String   @id @default(uuid())
+  kbCode     String   @unique
+  title      String
+  category   String
+  content    String
+  policyCode String?
+  priority   Int      @default(1)
+  tags       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model SystemEvent {
+  id          String   @id @default(uuid())
+  eventType   String
+  source      String
+  payloadJson String
+  timestamp   DateTime @default(now())
+}

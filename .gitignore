@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Production builds
+dist/
+**/dist/
+build/
+**/build/
+
+# Environment variables & local secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+
+# Prisma / SQLite temporary DB files (keep dev.db or exclude as needed)
+# *.db-journal
+
+# Vercel
+.vercel/
