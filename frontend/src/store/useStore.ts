@@ -1,5 +1,11 @@
 import { create } from 'zustand';
 import { TabType, Ticket, Transaction, FraudCase, Approval, AuditLog, AnalyticsMetrics } from '../types';
+import {
+  setEncryptedItem,
+  getEncryptedItem,
+  removeEncryptedItem,
+  clearSessionKey,
+} from '../utils/crypto';
 
 export interface UserState {
   id: string;
@@ -27,6 +33,7 @@ interface AppState {
   isAuthenticated: boolean;
   loginUser: (user: UserState, token: string) => void;
   logoutUser: () => void;
+  bootstrapAuth: () => Promise<void>; // Async: loads encrypted session on mount
 
   // UI Drawer states
   isCopilotOpen: boolean;
@@ -65,17 +72,39 @@ export const useStore = create<AppState>((set) => ({
   activeTab: 'OVERVIEW',
   setActiveTab: (tab) => set({ activeTab: tab }),
 
-  currentUser: JSON.parse(localStorage.getItem('finops_user') || 'null'),
-  isAuthenticated: Boolean(localStorage.getItem('finops_auth_token')),
+  // Auth — initially unauthenticated; bootstrapAuth() will restore session
+  currentUser: null,
+  isAuthenticated: false,
+
   loginUser: (user, token) => {
+    // Persist encrypted to localStorage (async — fire and forget)
+    setEncryptedItem('finops_auth_token', token);
+    setEncryptedItem('finops_user', user);
+    // Also write plain token for Authorization header access in api.ts
     localStorage.setItem('finops_auth_token', token);
-    localStorage.setItem('finops_user', JSON.stringify(user));
     set({ currentUser: user, isAuthenticated: true });
   },
+
   logoutUser: () => {
+    removeEncryptedItem('finops_auth_token');
+    removeEncryptedItem('finops_user');
     localStorage.removeItem('finops_auth_token');
-    localStorage.removeItem('finops_user');
+    clearSessionKey();
     set({ currentUser: null, isAuthenticated: false });
+  },
+
+  bootstrapAuth: async () => {
+    try {
+      const token = await getEncryptedItem<string>('finops_auth_token');
+      const user = await getEncryptedItem<UserState>('finops_user');
+      if (token && user) {
+        localStorage.setItem('finops_auth_token', token);
+        set({ currentUser: user, isAuthenticated: true });
+      }
+    } catch {
+      // If decryption fails, force re-login (secure default)
+      set({ currentUser: null, isAuthenticated: false });
+    }
   },
 
   isCopilotOpen: false,

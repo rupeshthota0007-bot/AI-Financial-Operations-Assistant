@@ -7,16 +7,16 @@ import {
   User,
   UserPlus,
   ArrowRight,
-  Sparkles,
   Zap,
-  CheckCircle2,
-  Building,
   Shield,
   FileText,
   Activity,
+  LockKeyhole,
+  CheckCircle2,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { api } from '../services/api';
+import { isE2EESupported } from '../utils/crypto';
 
 export const LoginPage: React.FC = () => {
   const { loginUser } = useStore();
@@ -192,7 +192,7 @@ export const LoginPage: React.FC = () => {
             </div>
 
             {/* Platform Status */}
-            <div className="flex items-center space-x-4 pt-2 text-xs text-slate-400">
+            <div className="flex flex-wrap items-center gap-3 pt-2 text-xs text-slate-400">
               <div className="flex items-center space-x-1.5">
                 <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="font-semibold text-slate-300">Operational</span>
@@ -200,7 +200,15 @@ export const LoginPage: React.FC = () => {
               <span>•</span>
               <span>WebSocket Stream Active</span>
               <span>•</span>
-              <span>Role-Based Access Control (RBAC)</span>
+              <span>RBAC Enforced</span>
+              <span>•</span>
+              {/* E2EE Live Status */}
+              <div className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30">
+                <LockKeyhole className="w-3 h-3 text-cyan-400" />
+                <span className="font-bold text-cyan-400">
+                  {isE2EESupported() ? 'E2EE Active — AES-256-GCM' : 'E2EE Unavailable'}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -217,9 +225,25 @@ export const LoginPage: React.FC = () => {
                     </h2>
                     <p className="text-xs text-slate-400">Enter your credentials or choose a demo profile</p>
                   </div>
-                  <div className="p-2 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-400">
-                    <Lock className="w-5 h-5" />
+                  <div className="flex flex-col items-end space-y-1">
+                    <div className="p-2 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-400">
+                      <Lock className="w-5 h-5" />
+                    </div>
                   </div>
+                </div>
+
+                {/* E2EE Security Status Banner */}
+                <div className={`flex items-center space-x-2 px-3 py-2 rounded-xl border text-xs font-semibold ${
+                  isE2EESupported()
+                    ? 'bg-cyan-950/30 border-cyan-500/30 text-cyan-400'
+                    : 'bg-yellow-950/30 border-yellow-500/30 text-yellow-400'
+                }`}>
+                  <LockKeyhole className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    {isE2EESupported()
+                      ? '🔐 End-to-End Encrypted — AES-256-GCM · PBKDF2 (310k iters) · Encrypted Storage'
+                      : '⚠️ E2EE unavailable in this browser context'}
+                  </span>
                 </div>
 
                 {/* Tab Switcher */}

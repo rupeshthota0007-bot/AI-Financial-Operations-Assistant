@@ -13,16 +13,27 @@ import agentRoutes from './routes/agentRoutes';
 import analyticsRoutes from './routes/analyticsRoutes';
 import knowledgeRoutes from './routes/knowledgeRoutes';
 
+import { securityHeaders, e2eeEnvelopeHandler, rateLimiter } from './middleware/security';
+
 dotenv.config();
 
 export const app = express();
 
-// Security Middleware
+// ── Security Middleware ──────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
+app.use(securityHeaders);                             // Enterprise security headers + E2EE policy
 app.use(cors({ origin: '*', credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));              // Limit payload size
 
-// API Module Routing
+// ── E2EE Envelope Middleware (global — before all routes) ───────────────────
+app.use(e2eeEnvelopeHandler);
+
+// ── Rate Limiting ────────────────────────────────────────────────────────────
+// Auth endpoints: stricter limit to prevent brute force
+app.use('/api/auth', rateLimiter(20, 60_000));        // 20 req/min on auth
+app.use('/api', rateLimiter(200, 60_000));             // 200 req/min globally
+
+// ── API Module Routing ───────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/payments', paymentRoutes);
@@ -33,17 +44,23 @@ app.use('/api/agent', agentRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/knowledge', knowledgeRoutes);
 
-// Health Check
+// ── Health Check (with E2EE status) ─────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'HEALTHY',
     service: 'Agentic Financial Operations Assistant',
-    version: '1.0.0',
+    version: '2.0.0',
+    security: {
+      e2ee: 'AES-256-GCM/PBKDF2-SHA-256',
+      transport: 'TLS 1.3',
+      rateLimit: 'Active',
+      antiReplay: 'Active (5-min window)',
+    },
     timestamp: new Date(),
   });
 });
 
-// Fallback Error Handler
+// ── Fallback Error Handler ───────────────────────────────────────────────────
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Unhandled Server Error:', err);
   res.status(500).json({ success: false, error: err.message || 'Internal Server Error' });

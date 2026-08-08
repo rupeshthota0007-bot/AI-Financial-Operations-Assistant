@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Search, Bell, Sparkles, Command, ShieldCheck, PlayCircle, LogIn, LogOut, UserCheck } from 'lucide-react';
+import { Search, Bell, Sparkles, Command, ShieldCheck, PlayCircle, LogIn, LogOut, UserCheck, LockKeyhole } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { LoginModal } from './LoginModal';
+import { isE2EESupported } from '../utils/crypto';
 
 export const Navbar: React.FC = () => {
   const { setCopilotOpen, setCommandPaletteOpen, setDemoModalOpen, approvals, currentUser, logoutUser } = useStore();
@@ -66,6 +67,19 @@ export const Navbar: React.FC = () => {
           <Sparkles className="w-4 h-4 text-yellow-300" />
           <span>AI Copilot</span>
         </button>
+
+        {/* E2EE Status Indicator */}
+        <div
+          title="End-to-End Encryption Active: AES-256-GCM / PBKDF2"
+          className={`hidden md:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition ${
+            isE2EESupported()
+              ? 'bg-cyan-950/30 border-cyan-500/30 text-cyan-400'
+              : 'bg-yellow-950/30 border-yellow-500/30 text-yellow-400'
+          }`}
+        >
+          <LockKeyhole className="w-3.5 h-3.5" />
+          <span>{isE2EESupported() ? 'E2EE' : 'Unenc'}</span>
+        </div>
 
         {/* Notifications Icon with Badge */}
         <div className="relative">
